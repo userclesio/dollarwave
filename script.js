@@ -7,13 +7,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const popupAudio = document.getElementById("popup-audio");
 
   let currentTaskIndex = 0;
+  let userName = "";
+  const balanceSection = document.querySelector(".balance-section");
+  const hiddenOnVerify = ["age_verify", "name_input", "checking"];
 
   const tasks = [
     {
+      type: "age_verify",
+      balance: 0,
+    },
+    {
+      type: "name_input",
+      balance: 0,
+    },
+    {
+      type: "checking",
+      balance: 0,
+    },
+    {
       type: "intro",
       headerText: "",
-      instruction:
-        "You have just been granted access to a new Google tool to learn <strong>how Captchas work</strong>. <br><br><strong>Take advantage:</strong> with just 3 analyses, you will already start to understand how large verification systems work in practice! <br><br><strong>Click the button below and get started now!</strong>",
       buttonText: "CLICK HERE TO START",
       balance: 100,
       reward: 0,
@@ -79,7 +92,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const loadNextTask = () => {
     const task = tasks[currentTaskIndex];
 
-    if (task.balance !== undefined) {
+    balanceSection.style.display = hiddenOnVerify.includes(task.type) ? "none" : "";
+
+    if (task.balance !== undefined && task.balance > 0) {
       balanceElement.textContent = `$${task.balance}`;
     }
 
@@ -87,14 +102,88 @@ document.addEventListener("DOMContentLoaded", () => {
       headerTaskText.textContent = task.headerText;
     }
 
+    if (task.type === "age_verify") {
+      headerTaskText.textContent = "";
+      quizContainer.innerHTML = `
+        <div class="final-message quiz-content">
+          <h2>Age Verification</h2>
+          <p>You must be <strong>18 years or older</strong> to access this platform.<br><br>Please confirm your age to continue.</p>
+          <button class="final-button" id="age-confirm-button">I AM 18 OR OLDER</button>
+        </div>
+      `;
+      document.getElementById("age-confirm-button").addEventListener("click", () => {
+        currentTaskIndex++;
+        loadNextTask();
+      });
+      return;
+    }
+
+    if (task.type === "name_input") {
+      headerTaskText.textContent = "";
+      quizContainer.innerHTML = `
+        <div class="final-message quiz-content">
+          <h2>Enter Your Name</h2>
+          <p>Please enter your name to check for available spots.</p>
+          <input type="text" id="name-input-field" class="name-input-field" placeholder="Your full name" autocomplete="off" />
+          <button class="final-button" id="name-confirm-button">CONTINUE</button>
+        </div>
+      `;
+      document.getElementById("name-confirm-button").addEventListener("click", () => {
+        const input = document.getElementById("name-input-field").value.trim();
+        if (!input) {
+          document.getElementById("name-input-field").classList.add("input-error");
+          return;
+        }
+        userName = input.split(" ")[0];
+        currentTaskIndex++;
+        loadNextTask();
+      });
+      return;
+    }
+
+    if (task.type === "checking") {
+      headerTaskText.textContent = "";
+      quizContainer.innerHTML = `
+        <div class="final-message quiz-content">
+          <h2>Please Wait...</h2>
+          <div class="checking-status" id="checking-status">Verifying your eligibility...</div>
+          <div class="checking-spinner"></div>
+        </div>
+      `;
+      const statusEl = document.getElementById("checking-status");
+      const steps = [
+        "Verifying your eligibility...",
+        "Checking available spots...",
+        "Spot found! Loading your access...",
+      ];
+      let step = 0;
+      const interval = setInterval(() => {
+        step++;
+        if (step < steps.length) {
+          statusEl.style.opacity = "0";
+          setTimeout(() => {
+            statusEl.textContent = steps[step];
+            statusEl.style.opacity = "1";
+          }, 300);
+        } else {
+          clearInterval(interval);
+          setTimeout(() => {
+            currentTaskIndex++;
+            loadNextTask();
+          }, 600);
+        }
+      }, 1000);
+      return;
+    }
+
     if (task.type === "final") {
       const finalScreenHTML = `
-                <div class="final-message quiz-content">
-                    <h2>CONGRATULATIONS!</h2>
-                    <p>${task.instruction}</p>
-                    <button class="final-button" id="final-redirect-button">${task.buttonText}</button>
-                </div>
-            `;
+        <div class="final-message quiz-content">
+          <h2>CONGRATULATIONS!</h2>
+          <p>${task.instruction}</p>
+          <button class="final-button" id="final-redirect-button">${task.buttonText}</button>
+        </div>
+      `;
       quizContainer.innerHTML = finalScreenHTML;
       document
         .getElementById("final-redirect-button")
@@ -106,12 +195,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (task.type === "intro") {
       const introScreenHTML = `
-                <div class="final-message quiz-content">
-                    <h2>CONGRATULATIONS, YOU HAVE BEEN SELECTED!</h2>
-                    <p>${task.instruction}</p>
-                    <button class="final-button" id="intro-start-button">${task.buttonText}</button>
-                </div>
-            `;
+        <div class="final-message quiz-content">
+          <h2>CONGRATULATIONS, ${userName.toUpperCase()}!</h2>
+          <p>YOU HAVE BEEN SELECTED TO TEST THE CAPTCHA DOLLAR SYSTEM.<br><br>
+          <strong>Take advantage:</strong> with just 3 analyses, you will already start to understand how large verification systems work in practice!<br><br>
+          <strong>Click the button below and get started now!</strong></p>
+          <button class="final-button" id="intro-start-button">${task.buttonText}</button>
+        </div>
+      `;
       quizContainer.innerHTML = introScreenHTML;
       document
         .getElementById("intro-start-button")
@@ -124,17 +215,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (task.type === "quiz") {
       const taskHTML = `
-                <div class="task-instruction quiz-content">
-                    <p>${task.instruction}</p>
-                </div>
-                <div class="single-image-container quiz-content">
-                    <img src="${task.imageLink}" alt="Task image" class="single-image">
-                </div>
-                <div class="button-group quiz-content">
-                    <button class="button correct" id="btn-correct">CORRECT</button>
-                    <button class="button incorrect" id="btn-incorrect">INCORRECT</button>
-                </div>
-            `;
+        <div class="task-instruction quiz-content">
+          <p>${task.instruction}</p>
+        </div>
+        <div class="single-image-container quiz-content">
+          <img src="${task.imageLink}" alt="Task image" class="single-image">
+        </div>
+        <div class="button-group quiz-content">
+          <button class="button correct" id="btn-correct">CORRECT</button>
+          <button class="button incorrect" id="btn-incorrect">INCORRECT</button>
+        </div>
+      `;
 
       quizContainer.innerHTML = taskHTML;
 
@@ -151,7 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const currentTask = tasks[currentTaskIndex];
     if (currentTask.reward > 0) {
       popupValue.textContent = `+$${currentTask.reward}.00`;
-      popupSuccess.style.display = "flex"; 
+      popupSuccess.style.display = "flex";
       if (popupAudio) {
         popupAudio.currentTime = 0;
         popupAudio.play();
@@ -163,9 +254,9 @@ document.addEventListener("DOMContentLoaded", () => {
         origin: { y: 0.6 },
       });
       setTimeout(() => {
-        popupSuccess.style.display = "none"; 
+        popupSuccess.style.display = "none";
         currentTaskIndex++;
-        loadNextTask(); 
+        loadNextTask();
       }, 1500);
     } else {
       currentTaskIndex++;
